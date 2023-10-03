@@ -10,7 +10,7 @@ from matplotlib.figure import Figure
 eps = 1e-10
 
 class BinaryGXDiagram(Axes):
-    """Binary phase diagram plotter"""
+    """Binary G-x diagram plotter"""
 
     def __init__(
         self,
@@ -70,7 +70,11 @@ class BinaryGXDiagram(Axes):
 
             total_units = sum(portions.values())
 
-            x.append(portions[phases[-1]] / total_units)
+            fractions = {}
+            for phase in phases:
+                fractions[phase] = portions[phase] / total_units
+
+            x.append(fractions[phases[-1]])
 
             energies = []
             for atoms in traj:
