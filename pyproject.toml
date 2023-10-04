@@ -8,13 +8,20 @@ version = "0.1.0"
 description = ""
 authors = [{ name = "Yuan Chiang", email = "cyrusyc@lbl.gov" }]
 license = { file = "LICENSE" }
+readme = "README.md"
 dependencies = [
+    "ase",
+    "matplotlib",
+    "numpy",
+    "matcalc",
+    "mp-api>=0.37.0",
+    "python-dotenv",
 ]
 requires-python = ">=3.10"
 
 
 [project.urls]
-Homepage = "https://github.com/chiang-yuan/muse"
+Repo = "https://github.com/chiang-yuan/muse"
 
 [tool.setuptools.packages.find]
 include = ["muse*"]
@@ -22,10 +29,21 @@ exclude = ["tests", "lab"]
 
 
 [tool.ruff]
+include = ["*.py", "*.pyi", "**/pyproject.toml", "*.ipynb"]
 # Enable the pycodestyle (`E`) and Pyflakes (`F`) rules by default.
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
 # McCabe complexity (`C901`) by default.
-select = ["E", "F"]
+select = [
+  "I",      # isort
+  "ICN",    # flake8-import-conventions
+  "ISC",    # flake8-implicit-str-concat
+  "PD",     # pandas-vet
+  "SIM",    # flake8-simplify
+  "SLOT",   # flake8-slots
+  "TCH",    # flake8-type-checking
+  "TID",    # flake8-tidy-imports
+  "UP",     # pyupgrade
+]
 ignore = []
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
@@ -64,5 +82,8 @@ line-length = 88
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-# Assume Python 3.10.
-target-version = "py310"
+# Assume Python 3.11.
+target-version = "py311"
+
+[tool.ruff.pydocstyle]
+convention = "google"
