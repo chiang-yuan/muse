@@ -1,7 +1,6 @@
-# muse
+# Muse
 
-Documentation for muse, a python package for fast building amorphous solids and liquid mixtures using Materials Project and ML force fields
-
+Muse is a python package for fast building amorphous solids and liquid mixtures based on relaxed solid-state structures on [Materials Project](https://materialsproject.org/) using [Packmol](http://m3g.iqm.unicamp.br/packmol/home.shtml) and machine learning interatomic potentials/force fields (MLIPs/MLFFs), especially universal interatomic potentials (UIPs) such as MACE and CHGNet.
 ## Usage
 
 ### Building the book
