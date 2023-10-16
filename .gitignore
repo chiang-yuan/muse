@@ -1,8 +1,22 @@
 #
 _*/
 lab/*
-examples/*/*
-!examples/*vasp.out
+*pkl
+*AECCAR*
+*ase-sort.dat
+*CHG*
+*CONTCAR
+*DOSCAR
+*EIGENVAL
+*IBZKPT
+*LOCPOT
+*PCDAT
+*POT*
+*PROCAR
+*REPORT
+*WAVECAR
+*OUTCAR
+*vasprun.xml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
