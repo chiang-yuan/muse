@@ -107,10 +107,21 @@ def mix(
                 if log:
                     print(e)
                 seed += 1
-            
+                if seed % 100 == 0:
+                    if log:
+                        print("WARNING: Packmol failed 100 times. Trying again with larger box.")
+                    a *= 1.05
     
     atoms.set_cell([a, a, a])
     atoms.set_pbc(True)
+
+    if a != total_volume**(1.0/3.0) * scale:
+        if log:
+            print("WARNING: Box size was increased. Shrinking to designated size.")
+        scaled_positions = atoms.get_scaled_positions()
+        a = total_volume**(1.0/3.0) * scale
+        atoms.set_cell([a, a, a])
+        atoms.set_scaled_positions(scaled_positions)
 
     np.random.seed(seed)
     if rattle > 0:

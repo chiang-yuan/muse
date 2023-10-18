@@ -8,6 +8,7 @@ import shutil
 import sys
 import tempfile
 import time
+from datetime import timedelta
 from math import sqrt
 from pathlib import Path
 
@@ -24,16 +25,10 @@ from vasp_interactive import VaspInteractive
 from muse.calcs.density import DensityCalc
 from muse.transforms.mixture import mix
 
-ncpus = psutil.cpu_count(logical=False)
-
 os.environ["OMP_NUM_THREADS"] = "1"
-os.environ[
-    "ASE_VASP_COMMAND"
-] = "ulimit -s unlimited; module load intelmpi/20.4-intel20.4; mpirun -np 32 /jet/home/ychiang4/.local/bin/vasp_std"
-
 
 def main(args):
-    parent_dir = osp.join(os.getcwd(), "-".join(args.recipe.keys()))
+    parent_dir = osp.join(args.root, "-".join(args.recipe.keys()))
     os.makedirs(parent_dir, exist_ok=True)
 
     # 1. Generate initial configuration for the mixture
@@ -54,9 +49,13 @@ def main(args):
 
     write(osp.join(out_dir, "0-packmol-mixture.xyz"), atoms)
 
-    njobs = max(min(ncpus, len(atoms)), 8)
+    ncpus = psutil.cpu_count(logical=False)
+    njobs = min(ncpus, len(atoms))
 
     # os.environ["ASE_VASP_COMMAND"] = f"ulimit -s unlimited; mpirun -np {njobs} /jet/home/ychiang4/.local/bin/vasp_std"
+    os.environ[
+        "ASE_VASP_COMMAND"
+    ] = f"ulimit -s unlimited; module load intelmpi/20.4-intel20.4; mpirun -np {njobs} /jet/home/ychiang4/.local/bin/vasp_std"
 
     # 2. Relax the mixture using Lennard-Jones potential
 
@@ -87,7 +86,8 @@ def main(args):
 
     params = dict(
         xc="pbe",
-        # metagga="R2SCAN",
+        gga=None,
+        metagga="R2SCAN",
         algo="All",
         ediff=1e-4,  # MPR2SCANRelaxSet: 1e-5
         ediffg=0,
@@ -97,8 +97,8 @@ def main(args):
         isif=3,
         ismear=0,
         sigma=0.05,  # 8.615e-5*temp for consistent electronic temperature
-        kpts=1,
-        # kspacing=0.22,
+        # kpts=1,
+        kspacing=0.22,
         laechg=True,  # AECCARs
         lasph=True,  # aspherical charge density
         lcharg=True,  # CHGCAR
@@ -114,14 +114,14 @@ def main(args):
         nsw=int(steps * 2),
         prec="Accurate",
         # Massively parallel machines (Cray)
-        lplane=False,
-        npar=int(sqrt(ncpus)),
-        nsim=1
+        # lplane=False,
+        # npar=int(sqrt(ncpus)),
+        # nsim=1
         # Multicore modern linux machines
-        # lplane=True,
-        # npar=2,
-        # lscalu=False,
-        # nsim=4
+        lplane=True,
+        npar=2,
+        lscalu=False,
+        nsim=4
     )
 
     out_stem = str(osp.join(out_dir, f"T_{temp}-P_{pressure}-seed_{args.seed}"))
@@ -176,10 +176,12 @@ if __name__ == "__main__":
     argparser.add_argument("--no-shuffle", dest="shuffle", action="store_false")
     argparser.add_argument("--seed", type=int, default=1)
     argparser.add_argument("--log", action="store_true")
+    argparser.add_argument("--root", type=Path, default=Path.cwd())
 
     args = argparser.parse_args()
 
     start_time = time.time()
     print(main(args))
     end_time = time.time()
-    print(f"Total time: {end_time - start_time:.2f} s")
+    elapsed_time = end_time - start_time
+    print(f"Total time: {str(timedelta(elapsed_time))} s")
