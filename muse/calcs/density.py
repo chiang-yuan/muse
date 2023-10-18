@@ -85,7 +85,6 @@ class DensityCalc(PropCalc):
         ttime: float = 25.0 * units.fs,
         pfactor: float = (75 * units.fs) ** 2 * units.GPa,
         annealing: float = 1.0,
-        calc: Calculator | None = None,
     ) -> dict:
         """Relax the structure and run NPT simulations to compute the density.
 
@@ -105,32 +104,29 @@ class DensityCalc(PropCalc):
         """
         # relax the structure
 
-        with calc:
-            atoms.calc = calc
-            stream = io.StringIO()
+        atoms.calc = self.calculator
 
-            # step 0: relax at 0 K
+        stream = io.StringIO()
 
-            with contextlib.redirect_stdout(stream):
-                
-                # assert isinstance(self.optimizer, Callable)
-                optimizer = self.optimizer(atoms)
-                # assert isinstance(self.optimizer, Optimizer)
+        # step 0: relax at 0 K
 
-                # if self.mask is not None:
-                #     ecf = ExpCellFilter(atoms, mask=self.mask)
+        with contextlib.redirect_stdout(stream):
+            
+            # assert isinstance(self.optimizer, Callable)
+            optimizer = self.optimizer(atoms)
+            # assert isinstance(self.optimizer, Optimizer)
 
-                if self.out_stem is not None:
-                    traj = Trajectory(f"{self.out_stem}-relax.traj", "w", atoms)
-                    optimizer.attach(traj.write, interval=self.interval)
+            # if self.mask is not None:
+            #     ecf = ExpCellFilter(atoms, mask=self.mask)
 
-                obs = TrajectoryObserver(atoms)
-                optimizer.attach(obs, interval=self.interval)
-                optimizer.run(fmax=self.fmax, steps=self.steps)
+            if self.out_stem is not None:
+                traj = Trajectory(f"{self.out_stem}-relax.traj", "w", atoms)
+                optimizer.attach(traj.write, interval=self.interval)
 
-        n_ion, n_elec = calc.read_all_iterations()
-        print(f"Relaxation by VaspInteractive in {n_ion - 1} steps")
-        print(f"Electronic scf steps per ionic cycle: {n_elec[:-1]}")
+            obs = TrajectoryObserver(atoms)
+            optimizer.attach(obs, interval=self.interval)
+            optimizer.run(fmax=self.fmax, steps=self.steps)
+            
         if self.out_stem is not None:
             traj.close()
             obs()
