@@ -26,6 +26,8 @@ def mix(
     Mixes a set of molecules according to a recipe.
     """
 
+    np.random.seed(seed)
+
     molecules = []
     
     for formula, units in recipe.items():
@@ -107,10 +109,27 @@ def mix(
                 if log:
                     print(e)
                 seed += 1
-                if seed % 100 == 0:
+                if seed % int(1e3) == 0:
                     if log:
-                        print("WARNING: Packmol failed 100 times. Trying again with larger box.")
+                        print("WARNING: Packmol failed 1000 times. Trying again with larger box.")
                     a *= 1.05
+
+                if a > total_volume**(1.0/3.0) * scale * 2:
+                    if log:
+                        print("WARNING: Box size was increased by more than 2x. Generate random strcture.")
+
+                    a = total_volume**(1.0/3.0) * scale
+
+                    symbols = ""
+                    for molecule in molecules:
+                        symbols += molecule["name"] * molecule["number"]
+
+                    atoms = Atoms(
+                        symbols=symbols, 
+                        cell=[a, a, a], 
+                        pbc=True
+                        )
+                    atoms.set_scaled_positions(+ np.random.random(size=atoms.positions.shape))
     
     atoms.set_cell([a, a, a])
     atoms.set_pbc(True)
@@ -123,7 +142,6 @@ def mix(
         atoms.set_cell([a, a, a])
         atoms.set_scaled_positions(scaled_positions)
 
-    np.random.seed(seed)
     if rattle > 0:
         atoms.positions += np.random.normal(0, rattle, size=atoms.positions.shape)
     
