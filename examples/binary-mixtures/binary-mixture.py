@@ -239,4 +239,4 @@ if __name__ == "__main__":
     print(main(args))
     end_time = time.time()
     elapsed_time = end_time - start_time
-    print(f"Total time: {str(timedelta(elapsed_time))} s")
+    print(f"Total time: {str(timedelta(seconds=elapsed_time))} s")
