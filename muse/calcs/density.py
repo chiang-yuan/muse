@@ -104,14 +104,13 @@ class DensityCalc(PropCalc):
         """
         # relax the structure
 
-        atoms.calc = self.calculator
-
         stream = io.StringIO()
 
         # step 0: relax at 0 K
 
         with contextlib.redirect_stdout(stream):
             
+            atoms.calc = self.calculator
             # assert isinstance(self.optimizer, Callable)
             optimizer = self.optimizer(atoms)
             # assert isinstance(self.optimizer, Optimizer)
@@ -126,7 +125,7 @@ class DensityCalc(PropCalc):
             obs = TrajectoryObserver(atoms)
             optimizer.attach(obs, interval=self.interval)
             optimizer.run(fmax=self.fmax, steps=self.steps)
-            
+
         if self.out_stem is not None:
             traj.close()
             obs()
@@ -240,7 +239,8 @@ class DensityCalc(PropCalc):
         last_erg_avg, first_erg_avg = None, None
         while not converged:
             if self.out_stem is not None:
-                traj = Trajectory(f"{self.out_stem}-npt-{restart}.traj", "w", atoms)
+                self.final_traj_fpath = f"{self.out_stem}-npt-{restart}.traj"
+                traj = Trajectory(self.final_traj_fpath, "w", atoms)
                 npt.attach(traj.write, interval=self.interval)
 
             obs = TrajectoryObserver(atoms)

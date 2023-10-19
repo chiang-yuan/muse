@@ -129,7 +129,7 @@ def mix(
                         cell=[a, a, a], 
                         pbc=True
                         )
-                    atoms.set_scaled_positions(+ np.random.random(size=atoms.positions.shape))
+                    atoms.set_scaled_positions(np.random.random(size=atoms.positions.shape))
     
     atoms.set_cell([a, a, a])
     atoms.set_pbc(True)

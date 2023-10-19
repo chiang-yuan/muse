@@ -4,21 +4,25 @@ import argparse
 import json
 import os
 import os.path as osp
-import shutil
-import sys
 import tempfile
 import time
 from datetime import timedelta
-from math import sqrt
 from pathlib import Path
+from typing import Union
 
 import numpy as np
 import psutil
+import torch
 from ase import units
 from ase.calculators.lj import LennardJones
-from ase.calculators.socketio import SocketIOCalculator
-from ase.io import write
+from ase.io import read, write
+from ase.io.trajectory import Trajectory
+from ase.md.npt import NPT
+from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary
 from ase.optimize import BFGS, FIRE
+from ase.optimize.optimize import Optimizer
+from mace.calculator import MACECalculator
+from matcalc.base import PropCalc
 from pymatgen.core.periodic_table import Element
 from vasp_interactive import VaspInteractive
 
@@ -31,7 +35,7 @@ def main(args):
     parent_dir = osp.join(args.root, "-".join(args.recipe.keys()))
     os.makedirs(parent_dir, exist_ok=True)
 
-    # 1. Generate initial configuration for the mixture
+    # 0. Generate initial configuration for the mixture
 
     atoms = mix(
         recipe=args.recipe,
@@ -57,7 +61,7 @@ def main(args):
         "ASE_VASP_COMMAND"
     ] = f"ulimit -s unlimited; module load intelmpi/20.4-intel20.4; mpirun -np {njobs} /jet/home/ychiang4/.local/bin/vasp_std"
 
-    # 2. Relax the mixture using Lennard-Jones potential
+    # 1. Relax the mixture using Lennard-Jones potential
 
     atoms.calc = LennardJones(
         sigma=1.5 * args.tolerance, epsilon=1.0, rc=None, smooth=True
@@ -67,7 +71,7 @@ def main(args):
 
     write(osp.join(out_dir, "1-lj-relaxed.xyz"), atoms)
 
-    # 3. Relax the mixture using density workflow
+    # 2. Relax the mixture using density workflow
 
     dt = 5 * units.fs
     steps = 200  # 1 ps for demo
@@ -83,6 +87,46 @@ def main(args):
     B = 23 * units.GPa  # bulk modulus of solid NaCl (MP)
     ptime = 75 * units.fs  # 75 fs suggested by ase
     pfactor = ptime**2 * B
+
+    out_stem = str(osp.join(out_dir, f"T_{temp}-P_{pressure}-seed_{args.seed}"))
+    os.makedirs(out_stem, exist_ok=True)
+
+    if "vasp" in args.calculator.lower():
+        raise NotImplementedError("Running density pipeline using VASP is not supported yet.")
+    else:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        calculator = MACECalculator(
+            # model_paths='/ocean/projects/dmr110014p/ychiang4/2023-08-14-mace-universal.model', 
+            model_paths=args.calculator,
+            device=device
+        )
+        
+
+    density_calc = DensityCalc(
+        calculator=calculator,
+        optimizer=FIRE,
+        steps=steps,
+        mask=np.eye(3),
+        rtol=1e-3,
+        atol=5e-4,
+        out_stem=out_stem,
+    )
+
+    results = density_calc.calc(
+        atoms=atoms, 
+        temperature=temp, 
+        externalstress=pressure, # equivalent to (-p, -p, -p, 0, 0, 0)
+        timestep=dt,
+        ttime=ttime,
+        pfactor=pfactor,
+        annealing=1.2
+    )
+
+    print(results)
+
+    write(osp.join(out_stem, f"2-{calculator.name}-relaxed.xyz"), atoms)
+
+    # 3. Run several single-point calculations for the relaxation trajectory
 
     params = dict(
         xc="pbe",
@@ -124,43 +168,52 @@ def main(args):
         nsim=4
     )
 
-    out_stem = str(osp.join(out_dir, f"T_{temp}-P_{pressure}-seed_{args.seed}"))
-    os.makedirs(out_stem, exist_ok=True)
+    traj_file = osp.join(out_stem, density_calc.final_traj_fpath)
 
-    # with tempfile.TemporaryDirectory(dir=out_dir) as tmpdir:
+    traj = read(traj_file, index=":")
 
-    cloned = atoms.copy()
-    calc = VaspInteractive(**params, directory=out_stem)
+    for i, cloned in enumerate(traj):
 
-    with calc:
-        cloned.calc = calc
-        optimizer = BFGS(cloned)
-        optimizer.run(fmax=0.1, steps=3)
+        if i % args.nsamples != 0:
+            continue
+
+        run_dir = os.makedirs(osp.join(out_stem, "3-vasp", f"{i:03d}"), exist_ok=True)
+
+        # with tempfile.TemporaryDirectory(dir=run_dir) as tmpdir:
+        calc = VaspInteractive(**params, directory=run_dir)
+
+        with calc:
+            cloned.calc = calc
+            # cloned.get_potential_energy()
+            print(f"VASP calculator frame {i}: {cloned.get_potential_energy()}")
+
+            cloned = calc.get_atoms()
+
+            write(osp.join(out_stem, f"3-{calc.name}-vasp-{i:03d}.xyz"), cloned)
+            
+            # npt = NPT(
+            #     cloned,
+            #     timestep=dt,
+            #     temperature_K=temp,
+            #     externalstress=pressure,
+            #     ttime=ttime,
+            #     pfactor=pfactor,
+            #     mask=np.eye(3),
+            # )
+            # npt.set_fraction_traceless(0.0)  # fix shape
+
+            # traj_fpath = osp.join(out_stem, f"3-{calc.name}-vasp.traj")
+            # traj = Trajectory(traj_fpath, "w", atoms)
+            # npt.attach(traj.write, interval=1)
+            # npt.run(steps=args.nsamples)
+            # traj.close()
+
+    # traj = read(traj_fpath, index=":", append=True)
+    
+    # for atoms in traj:
+    #     write(osp.join(out_dir, f"3-{calc.name}-vasp.xyz"), atoms, append=True)
 
     # shutil.copy(Path(tmpdir) / "*", out_stem)
-
-    # density_calc = DensityCalc(
-    #     calculator=calc,
-    #     optimizer=BFGS,
-    #     steps=steps,
-    #     mask=np.eye(3),
-    #     rtol=1e-2,
-    #     atol=5e-4,
-    #     out_stem=str(osp.join(out_dir, f'T_{temp}-P_{pressure}')),
-    # )
-
-    # density_calc.calc(
-    #     atoms=atoms,
-    #     temperature=temp,
-    #     externalstress=pressure, # equivalent to (-p, -p, -p, 0, 0, 0)
-    #     timestep=dt,
-    #     ttime=ttime,
-    #     pfactor=pfactor,
-    #     annealing=1.0,
-    #     calc=calc
-    # )
-
-    write(osp.join(out_dir, f"2-{calc.name}-relaxed.xyz"), atoms)
 
     return "success"
 
@@ -170,6 +223,7 @@ if __name__ == "__main__":
     argparser.add_argument("recipe", type=json.loads)
     argparser.add_argument("temperature", type=float)
     argparser.add_argument("pressure", type=float)
+    argparser.add_argument("--calculator", type=str, default="vasp_std")
     argparser.add_argument("--tolerance", type=float, default=2.0)
     argparser.add_argument("--rattle", type=float, default=0.1)
     argparser.add_argument("--scale", type=float, default=1.05)
@@ -177,6 +231,7 @@ if __name__ == "__main__":
     argparser.add_argument("--seed", type=int, default=1)
     argparser.add_argument("--log", action="store_true")
     argparser.add_argument("--root", type=Path, default=Path.cwd())
+    argparser.add_argument("--nsamples", type=int, default=5)
 
     args = argparser.parse_args()
 
