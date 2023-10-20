@@ -21,7 +21,7 @@ from ase.md.npt import NPT
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary
 from ase.optimize import BFGS, FIRE
 from ase.optimize.optimize import Optimizer
-from mace.calculator import MACECalculator
+from mace.calculators import MACECalculator
 from matcalc.base import PropCalc
 from pymatgen.core.periodic_table import Element
 from vasp_interactive import VaspInteractive
