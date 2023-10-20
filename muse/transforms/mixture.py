@@ -32,6 +32,9 @@ def mix(
     
     for formula, units in recipe.items():
 
+        if units == 0:
+            continue
+
         reduced_formula, input_mult = Formula(formula).reduce()
 
         entries = mpr.get_entries(
@@ -109,7 +112,7 @@ def mix(
                 if log:
                     print(e)
                 seed += 1
-                if seed % int(1e3) == 0:
+                if seed % int(1e4) == 0:
                     if log:
                         print("WARNING: Packmol failed 1000 times. Trying again with larger box.")
                     a *= 1.05
