@@ -21,7 +21,7 @@ from ase.md.npt import NPT
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary
 from ase.optimize import BFGS, FIRE
 from ase.optimize.optimize import Optimizer
-from mace.calculator import MACECalculator
+from mace.calculators import MACECalculator
 from matcalc.base import PropCalc
 from pymatgen.core.periodic_table import Element
 from vasp_interactive import VaspInteractive
@@ -63,8 +63,9 @@ def main(args):
 
     # 1. Relax the mixture using Lennard-Jones potential
 
+    sigma = atoms.get_volume() / len(atoms) ** (1 / 3)
     atoms.calc = LennardJones(
-        sigma=1.5 * args.tolerance, epsilon=1.0, rc=None, smooth=True
+        sigma=1.5 * sigma, epsilon=1.0, rc=None, smooth=True
     )
     optimizer = FIRE(atoms)
     optimizer.run(fmax=0.1)
