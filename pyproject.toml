@@ -16,6 +16,7 @@ dependencies = [
     "matcalc",
     "mp-api>=0.37.0",
     "python-dotenv",
+    "vasp-interactive @ git+https://github.com/ulissigroup/vasp-interactive.git"
 ]
 requires-python = ">=3.10"
 
