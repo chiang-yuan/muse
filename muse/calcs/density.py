@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import re
 from collections.abc import Callable
 from inspect import isclass
 from typing import TYPE_CHECKING
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
 
 __author__ = "Yuan Chiang"
 __date__ = "2023-08-02"
+
 
 class DensityCalc(PropCalc):
     """Relaxes and run NPT simulations to compute the density of structures."""
@@ -104,13 +106,13 @@ class DensityCalc(PropCalc):
         """
         # relax the structure
 
+        atoms.calc = self.calculator
+
         stream = io.StringIO()
 
         # step 0: relax at 0 K
 
         with contextlib.redirect_stdout(stream):
-            
-            atoms.calc = self.calculator
             # assert isinstance(self.optimizer, Callable)
             optimizer = self.optimizer(atoms)
             # assert isinstance(self.optimizer, Optimizer)
@@ -130,7 +132,8 @@ class DensityCalc(PropCalc):
             traj.close()
             obs()
             obs.save(f"{self.out_stem}-relax.pkl")
-            
+            del obs
+
         # print("Relaxation done.")
 
         # if self.mask is not None:
@@ -187,6 +190,7 @@ class DensityCalc(PropCalc):
                 traj.close()
                 obs()
                 obs.save(f"{self.out_stem}-nvt-{restart}.pkl")
+                del obs
 
             if not converged:
                 print(
@@ -213,9 +217,9 @@ class DensityCalc(PropCalc):
                     else "\r"
                 )
                 nvt.observers.clear()
-                del obs
                 # npt.zero_center_of_mass_momentum()
-                last_erg_avg = erg_avg
+                alpha = np.exp(-restart / 10)
+                last_erg_avg = alpha * erg_avg + (1 - alpha) * last_erg_avg
                 restart += 1
 
         # step 3: run NPT simulation
@@ -296,9 +300,9 @@ class DensityCalc(PropCalc):
                     else "\r"
                 )
                 npt.observers.clear()
-                del obs
                 # npt.zero_center_of_mass_momentum()
-                last_erg_avg = erg_avg
+                alpha = np.exp(-restart / 10)
+                last_erg_avg = alpha * erg_avg + (1 - alpha) * last_erg_avg
                 restart += 1
 
         volumes = [Cell(matrix).volume for matrix in obs.cells]
