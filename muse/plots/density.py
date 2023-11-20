@@ -9,13 +9,13 @@ from matplotlib.axes._axes import Axes
 from matplotlib.figure import Figure
 
 __author__ = "Yuan Chiang"
-__date__ = "2023-08-02"
+__date__ = "2023-11-06"
 
 eps = 1e-10
 
 
-class BinaryGXDiagram(Axes):
-    """Binary G-x diagram plotter."""
+class BinaryDXDiagram(Axes):
+    """Binary density-composition diagram plotter."""
 
     def __init__(
         self,
@@ -60,7 +60,7 @@ class BinaryGXDiagram(Axes):
         for phase in phases:
             phase = Formula.from_list(phase) if isinstance(phase, str) else sort(phase)
 
-        x, ergavgs, ergstds = [], [], []
+        x, denavgs, denstds = [], [], []
         for traj in trajectories:
             atoms = traj[0]
             formula = atoms.symbols.formula
@@ -77,41 +77,27 @@ class BinaryGXDiagram(Axes):
 
             x.append(fractions[phases[-1]])
 
-            energies = []
+            densities = []
             for atoms in traj:
-                energies.append(atoms.get_potential_energy())
-            ergavgs.append(np.mean(energies) / total_units)
-            ergstds.append(np.std(energies) / total_units)
+                densities.append(
+                    atoms.get_masses().sum()
+                    * 1.66054e-24
+                    / (atoms.get_volume() * 1e-24)
+                )
+            denavgs.append(np.mean(densities))
+            denstds.append(np.std(densities))
 
         x = np.array(x)
         idx = np.argsort(x)
         x = x[idx]
 
-        ergavgs = np.array(ergavgs)[idx]
-        ergstds = np.array(ergstds)[idx]
-
-        dH = ergavgs - (ergavgs[0] + x * (ergavgs[-1] - ergavgs[0]))
-        dS = -units.kB * (x * np.log(x + eps) + (1 - x) * np.log(1 - x + eps))
+        denavgs = np.array(denavgs)[idx]
+        denstds = np.array(denstds)[idx]
 
         self.errorbar(
             x,
-            dH,
-            yerr=ergstds,
-            label=f"{label}: $\\Delta H$" if label else "$\\Delta H$",
+            denavgs,
+            yerr=denstds,
+            label="$\\rho_m$ " + label if label else "$\\rho_m$",
             **kwargs,
         )
-
-        if temperature is not None:
-            dG = dH - temperature * dS
-            self.plot(
-                x,
-                -temperature * dS,
-                label=f"{label}: $-T\\Delta S$ " if label else "$-T\\Delta S$",
-                **kwargs,
-            )
-            self.plot(
-                x,
-                dG,
-                label=f"{label}: $\\Delta G$ " if label else "$\\Delta G$",
-                **kwargs,
-            )
