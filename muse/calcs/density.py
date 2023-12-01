@@ -87,6 +87,7 @@ class DensityCalc(PropCalc):
         ttime: float = 25.0 * units.fs,
         pfactor: float = (75 * units.fs) ** 2 * units.GPa,
         annealing: float = 1.0,
+        momentum: float = 0.9,
     ) -> dict:
         """Relax the structure and run NPT simulations to compute the density.
 
@@ -151,7 +152,6 @@ class DensityCalc(PropCalc):
             externalstress=externalstress,
             ttime=ttime,
             pfactor=None,
-            mask=self.mask,
         )
         nvt.set_fraction_traceless(0.0)
 
@@ -218,8 +218,8 @@ class DensityCalc(PropCalc):
                 )
                 nvt.observers.clear()
                 # npt.zero_center_of_mass_momentum()
-                alpha = np.exp(-restart / 10)
-                last_erg_avg = alpha * erg_avg + (1 - alpha) * last_erg_avg
+                # alpha = np.exp(-restart / 10)
+                last_erg_avg = momentum * erg_avg + (1 - momentum) * last_erg_avg
                 restart += 1
 
         # step 3: run NPT simulation
@@ -236,7 +236,8 @@ class DensityCalc(PropCalc):
             pfactor=pfactor,
             mask=self.mask,
         )
-        npt.set_fraction_traceless(0.0)  # fix shape
+        if np.array_equal(self.mask, np.eye(3)):
+            npt.set_fraction_traceless(0.0)  # fix shape
 
         converged, erg_converged, str_converged = False, False, False
         restart = 0
@@ -301,8 +302,8 @@ class DensityCalc(PropCalc):
                 )
                 npt.observers.clear()
                 # npt.zero_center_of_mass_momentum()
-                alpha = np.exp(-restart / 10)
-                last_erg_avg = alpha * erg_avg + (1 - alpha) * last_erg_avg
+                # alpha = np.exp(-restart / 10)
+                last_erg_avg = momentum * erg_avg + (1 - momentum) * last_erg_avg
                 restart += 1
 
         volumes = [Cell(matrix).volume for matrix in obs.cells]
