@@ -10,13 +10,13 @@ from matplotlib.axes._base import _AxesBase
 from matplotlib.figure import Figure
 
 __author__ = "Yuan Chiang"
-__date__ = "2023-11-06"
+__date__ = "2023-12-11"
 
 eps = 1e-10
 
 
-class BinaryDXDiagram(Axes):
-    """Binary density-composition diagram plotter."""
+class MixingVolumeDiagram(Axes):
+    """Binary mixing volume diagram plotter."""
 
     def __init__(
         self,
@@ -96,6 +96,10 @@ class BinaryDXDiagram(Axes):
         self.y["density.std"] = np.array(denstds)[idx]
         self.y["volume.avg"] = np.array(volavgs)[idx]
         self.y["volume.std"] = np.array(volstds)[idx]
+        volavgs = self.y["volume.avg"]
+        self.y["volume.deviation"] = volavgs - (
+            volavgs[0] + self.x * (volavgs[-1] - volavgs[0])
+        )
 
     def from_trajectories(
         self,
@@ -111,23 +115,10 @@ class BinaryDXDiagram(Axes):
 
         self.errorbar(
             self.x,
-            self.y["density.avg"],
-            yerr=self.y["density.std"],
-            label="$\\rho_m$ " + label if label else "$\\rho_m$",
-            **kwargs,
-        )
-
-    def plot_volume(
-        self,
-        label: str | None = None,
-        **kwargs,
-    ):
-        self.vol_ax = self.twinx()
-        self.vol_ax.errorbar(
-            self.x,
-            self.y["volume.avg"],
+            self.y["volume.deviation"],
             yerr=self.y["volume.std"],
-            label="$\\bar{V}$ " + label if label else "$\\bar{V}$",
+            label="$\\Delta \\overline{V}$ " + label
+            if label
+            else "$\\Delta \\overline{V}$",
             **kwargs,
         )
-        return self.vol_ax
