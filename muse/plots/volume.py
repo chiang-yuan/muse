@@ -96,9 +96,10 @@ class MixingVolumeDiagram(Axes):
         self.y["density.std"] = np.array(denstds)[idx]
         self.y["volume.avg"] = np.array(volavgs)[idx]
         self.y["volume.std"] = np.array(volstds)[idx]
-        volavgs = self.y["volume.avg"]
-        self.y["volume.deviation"] = volavgs - (
-            volavgs[0] + self.x * (volavgs[-1] - volavgs[0])
+        # volavgs =
+        self.y["volume.deviation"] = self.y["volume.avg"] - (
+            self.y["volume.avg"][0]
+            + self.x * (self.y["volume.avg"][-1] - self.y["volume.avg"][0])
         )
 
     def from_trajectories(

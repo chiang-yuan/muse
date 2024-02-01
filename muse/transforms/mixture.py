@@ -23,6 +23,7 @@ def mix(
     seed: int = 1,
     log: bool = False,
     mp_api_key: str = MP_API_KEY,
+    retry_scale: float = 1.5,
 ) -> Atoms:
     """Mixes a set of molecules according to a recipe.
 
@@ -38,12 +39,13 @@ def mix(
         seed (int, optional): Defaults to 1.
         log (bool, optional): Defaults to False.
         mp_api_key (str, optional): Defaults to MP_API_KEY.
+        retry_scale (float, optional): factor to scale box after 1000 times of Packmol failure. Defaults to 1.5.
 
     Returns:
         Atoms: generated structure as ASE Atoms object.
     """
 
-    mpr = MPRester(MP_API_KEY)
+    mpr = MPRester(mp_api_key)
     np.random.seed(seed)
 
     molecules = []
@@ -54,12 +56,6 @@ def mix(
 
         reduced_formula, input_mult = Formula(formula).reduce()
 
-        # entries = mpr.get_entries(
-        #     chemsys_formula_mpids=str(reduced_formula),
-        #     inc_structure=True,
-        #     conventional_unit_cell=False,
-        #     sort_by_e_above_hull=True,
-        # )
         docs = mpr.materials.summary.search(
             formula=str(reduced_formula),
             is_stable=True,
@@ -87,7 +83,6 @@ def mix(
                     d["number"] = d["number"] / count * (count + 1)
 
             number = input_mult * recipe[formula] / primitive_mult
-            # number = float(Formula(formula) * int(recipe[formula])) // primitive_formula
             if log:
                 print(recipe[formula], Formula(formula), number, primitive_formula)
 
@@ -130,8 +125,6 @@ def mix(
                 atoms = read("packmol_out.xyz", format="xyz")
                 break
             except Exception as e:
-                # if log:
-                #     print(e)
                 seed += 1
 
                 if a > total_volume ** (1.0 / 3.0) * scale * 2:
@@ -155,7 +148,7 @@ def mix(
                     break
 
                 if seed % int(1e3) == 0:
-                    a *= scale
+                    a *= retry_scale
                     if log:
                         print(
                             f"WARNING: Packmol failed 1000 times. Trying again with larger box. New box size: {a}"
@@ -166,7 +159,7 @@ def mix(
 
     if a != total_volume ** (1.0 / 3.0) * scale:
         if log:
-            print("WARNING: Box size was increased. Shrinking to designated size.")
+            print("WARNING: Box size was increased. Shrinking to the designated size.")
         scaled_positions = atoms.get_scaled_positions()
         a = total_volume ** (1.0 / 3.0) * scale
         atoms.set_cell([a, a, a])
