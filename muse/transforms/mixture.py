@@ -13,7 +13,7 @@ from pymatgen.io.packmol import PackmolBoxGen
 from muse.utils import MP_API_KEY
 
 
-def mix(
+def mix_number(
     recipe: dict[str, int],
     density: float | None = None,
     tolerance: float = 2.0,
@@ -21,8 +21,10 @@ def mix(
     scale: float = 1.0,
     shuffle: bool = True,
     seed: int = 1,
+    timeout: int = 30,
     log: bool = False,
     mp_api_key: str = MP_API_KEY,
+    retry: int = 1000,
     retry_scale: float = 1.5,
 ) -> Atoms:
     """Mixes a set of molecules according to a recipe.
@@ -120,11 +122,13 @@ def mix(
                     box=[margin, margin, margin, a - margin, a - margin, a - margin],
                 )
                 packmol_set.write_input(".")
-                packmol_set.run(".")
+                packmol_set.run(".", timeout=timeout)
 
                 atoms = read("packmol_out.xyz", format="xyz")
                 break
             except Exception as e:
+                if log:
+                    print(e)
                 seed += 1
 
                 if a > total_volume ** (1.0 / 3.0) * scale * 2:
@@ -147,11 +151,11 @@ def mix(
                     )
                     break
 
-                if seed % int(1e3) == 0:
+                if seed % retry == 0:
                     a *= retry_scale
                     if log:
                         print(
-                            f"WARNING: Packmol failed 1000 times. Trying again with larger box. New box size: {a}"
+                            f"WARNING: Packmol failed {retry} times. Trying again with larger box. New box size: {a}"
                         )
 
     atoms.set_cell([a, a, a])
@@ -192,3 +196,72 @@ def mix(
         )
 
     return sort(atoms)
+
+
+def mix_cell(
+    recipe: dict[str, float],
+    cell: tuple[float, float],
+    density: float | None = None,
+    tolerance: float = 2.0,
+    rattle: float = 0.5,
+    scale: float = 1.0,
+    shuffle: bool = True,
+    seed: int = 1,
+    log: bool = False,
+    mp_api_key: str = MP_API_KEY,
+    retry_scale: float = 1.5,
+) -> Atoms:
+
+
+    mpr = MPRester(mp_api_key)
+    np.random.seed(seed)
+
+    molecules = []
+
+    for formula, units in recipe.items():
+        if units == 0:
+            continue
+
+        reduced_formula, input_mult = Formula(formula).reduce()
+
+        docs = mpr.materials.summary.search(
+            formula=str(reduced_formula),
+            is_stable=True,
+            fields=["material_id", "pretty_formula", "structure"],
+        )
+
+        sga = SpacegroupAnalyzer(docs[0].structure)
+        primitive_structure = sga.get_primitive_standard_structure()
+
+        primitive_formula = Formula(primitive_structure.composition.to_pretty_string())
+
+        molecule = Molecule(
+            species=primitive_structure.species, coords=primitive_structure.cart_coords
+        )
+        _, primitive_mult = primitive_formula.reduce()
+
+
+        number: float = 0.0
+        count: int = 0
+        while number == 0 or not number.is_integer():
+            if count > 0:
+                for key, value in recipe.items():
+                    recipe[key] = value / count * (count + 1)
+
+                for d in molecules:
+                    d["number"] = d["number"] / count * (count + 1)
+
+            number = input_mult * recipe[formula] / primitive_mult
+            if log:
+                print(recipe[formula], Formula(formula), number, primitive_formula)
+
+            count += 1
+
+        molecules.append(
+            {
+                "name": primitive_structure.composition.to_pretty_string(),
+                "number": int(number),
+                "coords": molecule,
+                "volume": primitive_structure.volume,
+            }
+        )
