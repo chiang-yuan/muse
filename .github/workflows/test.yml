@@ -17,8 +17,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential
 
-      # Step 3: Compile the code
-      - name: Compile code
+      # Step 3: Compile packmol
+      - name: Compile Packmol
         run: |
           TAG=20.15.1
           wget "https://github.com/m3g/packmol/archive/refs/tags/v$TAG.tar.gz"
