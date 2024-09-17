@@ -25,14 +25,10 @@ jobs:
           tar -xzf "v$TAG.tar.gz"
           cd packmol-$TAG
           make
-
-      # Step 4: Move the binary to /usr/local/bin
-      - name: Move binary to /usr/local/bin
-        run: |
           sudo mv packmol /usr/local/bin
           sudo chmod +x /usr/local/bin/packmol
 
-      # Step 5: Run tests using the binary from /usr/local/bin
+      # Step 4: Run tests using the binary from /usr/local/bin
       - name: Run tests
         run: |
           which packmol
