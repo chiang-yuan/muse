@@ -1,0 +1,34 @@
+name: Build and Test
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up build tools (e.g., install compilers, make)
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      # Step 3: Compile packmol
+      - name: Compile Packmol
+        run: |
+          TAG=20.15.1
+          wget "https://github.com/m3g/packmol/archive/refs/tags/v$TAG.tar.gz"
+          tar -xzf "v$TAG.tar.gz"
+          cd packmol-$TAG
+          make
+          sudo mv packmol /usr/local/bin
+          sudo chmod +x /usr/local/bin/packmol
+
+      # Step 4: Run tests using the binary from /usr/local/bin
+      - name: Run tests
+        run: |
+          which packmol
