@@ -1,56 +1,27 @@
-name: Publish to PyPI
+name: Create release
 
 on:
   push:
     tags:
-      - 'v*'  # Triggers on version tags like v1.0.0, v2.1.0, etc.
+      - v*
+
+permissions:
+  contents: write
 
 jobs:
-  publish:
-    runs-on: ubuntu-latest
-
+  release:
+    name: Release pushed tag
+    runs-on: ubuntu-22.04
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'  # Use your desired Python version
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build twine
-
-    - name: Build package
-      run: |
-        python -m build
-
-    - name: Create GitHub Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-
-    - name: Install GitHub CLI
-      run: |
-        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
-        echo "deb [arch=amd64] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-        sudo apt update
-        sudo apt install gh
-
-    - name: Get Release Notes
-      id: get_release_notes
-      run: |
-        RELEASE_NOTES=$(gh release view ${{ github.ref }} --json body --jq .body)
-        echo "::set-output name=release_notes::$RELEASE_NOTES"
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+        run: |
+          gh release create "$tag" \
+              --repo="$GITHUB_REPOSITORY" \
+              --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
+              --generate-notes
 
     - name: Publish to PyPI
       env:
