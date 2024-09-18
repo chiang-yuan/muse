@@ -1,29 +1,33 @@
-name: Create release
+name: Publish
 
 on:
-  push:
-    tags:
-      - v*
-
-permissions:
-  contents: write
+  release:
+    types:
+      - created
 
 jobs:
-  release:
-    name: Release pushed tag
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Create release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.ref_name }}
-        run: |
-          gh release create "$tag" \
-              --repo="$GITHUB_REPOSITORY" \
-              --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
-              --generate-notes
+    publish:
+    runs-on: ubuntu-latest
 
-    - name: Publish to PyPI
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'  # Use your desired Python version
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+
+    - name: Build package
+      run: |
+        python -m build
+        
+    - name: PyPI
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
