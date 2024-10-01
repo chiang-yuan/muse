@@ -1,4 +1,4 @@
-name: deploy
+name: Deploy
 
 on:
   # Trigger the workflow on push to main branch

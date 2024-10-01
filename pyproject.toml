@@ -27,7 +27,7 @@ include = ["muse*"]
 exclude = ["tests", "lab"]
 
 
-[tool.ruff]
+[tool.ruff.lint]
 include = ["*.py", "*.pyi", "**/pyproject.toml", "*.ipynb"]
 # Enable the pycodestyle (`E`) and Pyflakes (`F`) rules by default.
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or

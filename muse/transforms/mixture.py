@@ -19,7 +19,7 @@ def mix_number(
     tolerance: float = 2.0,
     rattle: float = 0.5,
     scale: float = 1.0,
-    shuffle: bool = True,
+    shuffle: bool = False,
     seed: int = 1,
     timeout: int = 30,
     log: bool = False,
@@ -36,8 +36,8 @@ def mix_number(
         tolerance (float, optional): tolerance for packmol in Angstrom. Defaults to 2.0.
         rattle (float, optional): position rattle in Angstrom. Defaults to 0.5.
         scale (float, optional): scale factor for box size. Defaults to 1.0.
-        shuffle (bool, optional): shuffle atomic species. Defaults to True.
-            Otherwise, the neighbor environment will be similar to solid state.
+        shuffle (bool, optional): shuffle atomic species. Defaults to False.
+            The neighbor environment will be similar to solid state.
         seed (int, optional): Defaults to 1.
         log (bool, optional): Defaults to False.
         mp_api_key (str, optional): Defaults to MP_API_KEY.
@@ -211,8 +211,6 @@ def mix_cell(
     mp_api_key: str = MP_API_KEY,
     retry_scale: float = 1.5,
 ) -> Atoms:
-
-
     mpr = MPRester(mp_api_key)
     np.random.seed(seed)
 
@@ -239,7 +237,6 @@ def mix_cell(
             species=primitive_structure.species, coords=primitive_structure.cart_coords
         )
         _, primitive_mult = primitive_formula.reduce()
-
 
         number: float = 0.0
         count: int = 0
