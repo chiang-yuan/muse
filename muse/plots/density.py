@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
+from scipy.optimize import curve_fit
 from ase import Atoms, units
 from ase.build import sort
 from ase.formula import Formula
@@ -14,6 +15,22 @@ __date__ = "2023-11-06"
 
 eps = 1e-10
 
+def redlich_kister_model(x, T, *params):
+    """
+    Redlich-Kister expansion for excess property rho_ex.
+    
+    x  : mole fraction of one component
+    T  : temperature (assumed constant for each data point)
+    *params : array of A_n and B_n parameters for the Redlich-Kister expansion
+    """
+    N = len(params) // 2  # Number of terms N
+    rho_ex = 0
+    for n in range(1, N + 1):
+        A_n = params[2 * (n - 1)]
+        B_n = params[2 * (n - 1) + 1]
+        L_n = A_n + B_n * T  # Linear temperature-dependent term L_n
+        rho_ex += L_n * (2 * x - 1) ** (n - 1)  # Redlich-Kister term
+    return x * (1 - x) * rho_ex
 
 class BinaryDXDiagram(Axes):
     """Binary density-composition diagram plotter."""
@@ -101,7 +118,9 @@ class BinaryDXDiagram(Axes):
         self,
         trajectories: Sequence[Sequence[Atoms]],
         phases: Sequence[str | Formula],
+        temperature: float | None = None,
         label: str | None = None,
+        rk: int = 2,
         **kwargs,
     ) -> None:
         """Plot a binary phase diagram from a list of trajectories."""
@@ -109,13 +128,50 @@ class BinaryDXDiagram(Axes):
 
         self.process(trajectories, phases)
 
+        color = kwargs.pop("color", 'k')
+
         self.errorbar(
             self.x,
             self.y["density.avg"],
             yerr=self.y["density.std"],
-            label="$\\rho_m$ " + label if label else "$\\rho_m$",
+            label=f"{label}: $\\rho_m$" if label else "$\\rho_m$",
+            color=color,
+            fmt='o',
             **kwargs,
         )
+        
+        T = temperature or 1000
+
+        # Fitting the Redlich-Kister expansion model to Delta H (dH)
+        initial_guess = [0.0] * (2 * rk)  # Initial guess for [A1, B1, A2, B2, ..., AN, BN]
+        
+        y = self.y["density.avg"]
+        
+        params_opt, params_cov = curve_fit(
+            lambda x_T, *params: redlich_kister_model(x_T[0], x_T[1], *params),
+            (self.x, np.ones_like(self.x)*T), y - (y[0] + self.x * (y[-1] - y[0])), p0=initial_guess
+        )
+
+        # Extract fitted parameters for Redlich-Kister expansion
+        fitted_params = params_opt.reshape(-1, 2)
+        print("Fitted Redlich-Kister parameters (A_n, B_n):", fitted_params)
+
+        # Calculate fitted curve for Delta H using the fitted parameters
+        xs = np.linspace(self.x.min(), self.x.max(), int(1e3))
+        ys = redlich_kister_model(xs, T, *params_opt)
+        
+        ys += (y[0] + xs * (y[-1] - y[0]))
+
+        # Plotting the fitted Redlich-Kister curve
+        self.plot(
+            xs,
+            ys,
+            label=f"{label}: Redlich-Kister Fit" if label else "Redlich-Kister Fit",
+            linestyle="--",
+            lw=kwargs.get("lw", 1),
+            color=color
+        )
+
 
     def plot_volume(
         self,
@@ -127,7 +183,7 @@ class BinaryDXDiagram(Axes):
             self.x,
             self.y["volume.avg"],
             yerr=self.y["volume.std"],
-            label="$\\bar{V}$ " + label if label else "$\\bar{V}$",
+            label="$\\bar{V}$" if label else "$\\bar{V}$",
             **kwargs,
         )
         return self.vol_ax

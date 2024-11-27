@@ -1,3 +1,4 @@
+import math
 import numpy as np
 from ase import Atoms
 from ase.build import sort
@@ -76,7 +77,7 @@ def mix_number(
 
         number: float = 0.0
         count: int = 0
-        while number == 0 or not number.is_integer():
+        while number == 0 or not math.isclose(number, round(number), rel_tol=1e-3):
             if count > 0:
                 for key, value in recipe.items():
                     recipe[key] = value / count * (count + 1)
