@@ -159,7 +159,7 @@ def mix_number(
                             f"WARNING: Packmol failed {retry} times. Trying again with larger box. New box size: {a}"
                         )
 
-    atoms.set_cell([a, a, a])
+    atoms.set_cell([a, a, a], scale_atoms=True)
     atoms.set_pbc(True)
 
     if a != total_volume ** (1.0 / 3.0) * scale:
@@ -201,8 +201,7 @@ def mix_number(
 
 def mix_cell(
     recipe: dict[str, float],
-    cell: tuple[float, float],
-    density: float | None = None,
+    cell: Cell,
     tolerance: float = 2.0,
     rattle: float = 0.5,
     scale: float = 1.0,
@@ -263,3 +262,72 @@ def mix_cell(
                 "volume": primitive_structure.volume,
             }
         )
+
+    total_volume = 0
+    for molecule in molecules:
+        total_volume += molecule["volume"] * molecule["number"]
+
+    nfactor = cell.volume / total_volume
+
+    for molecule in molecules:
+        molecule["number"] = int(molecule["number"] * nfactor)
+    
+    if log:
+        print(molecules)
+    
+    a, b, c, alpha, beta, gamma = cell.cellpar()
+
+    with ScratchDir("."):
+        while True:
+            try:
+                input_gen = PackmolBoxGen(
+                    tolerance=tolerance,
+                    seed=seed,
+                )
+
+                margin = 0.5 * tolerance
+                packmol_set = input_gen.get_input_set(
+                    molecules=molecules,
+                    box=[margin, margin, margin, a - margin, b - margin, c - margin],
+                )
+                packmol_set.write_input(".")
+                packmol_set.run(".")
+
+                atoms = read("packmol_out.xyz", format="xyz")
+                break
+            except Exception as e:
+                if log:
+                    print(e)
+                seed += 1
+
+                if a > cell.volume ** (1.0 / 3.0) * scale * 2:
+                    if log:
+                        print(
+                            "WARNING: Box size was increased by more than 2x. Generate random strcture."
+                        )
+
+                    a, b, c, alpha, beta, gamma = cell.cellpar()
+                    atoms = Atoms(cell=cell, pbc=True)
+                    atoms.set_scaled_positions(
+                        np.random.random(size=atoms.positions.shape)
+                    )
+                    break
+
+                if seed % 1000 == 0:
+                    a *= retry_scale
+                    if log:
+                        print(
+                            f"WARNING: Packmol failed 1000 times. Trying again with larger box. New box size: {a}"
+                        )
+    
+    atoms.set_cell(cell, scale_atoms=True)
+    atoms.set_pbc(True)
+
+    if rattle > 0:
+        atoms.positions += np.random.normal(0, rattle, size=atoms.positions.shape)
+    
+    if shuffle:
+        atoms.numbers = np.random.permutation(atoms.numbers)
+
+    return sort(atoms)
+
