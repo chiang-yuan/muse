@@ -159,7 +159,7 @@ def mix_number(
                             f"WARNING: Packmol failed {retry} times. Trying again with larger box. New box size: {a}"
                         )
 
-    atoms.set_cell([a, a, a], scale_atoms=True)
+    atoms.set_cell([a, a, a])
     atoms.set_pbc(True)
 
     if a != total_volume ** (1.0 / 3.0) * scale:
@@ -320,7 +320,7 @@ def mix_cell(
                             f"WARNING: Packmol failed 1000 times. Trying again with larger box. New box size: {a}"
                         )
     
-    atoms.set_cell(cell, scale_atoms=True)
+    atoms.set_cell(cell)
     atoms.set_pbc(True)
 
     if rattle > 0:
