@@ -62,7 +62,7 @@ def mix_number(
         docs = mpr.materials.summary.search(
             formula=str(reduced_formula),
             is_stable=True,
-            fields=["material_id", "pretty_formula", "structure"],
+            fields=["material_id", "formula_pretty", "structure"],
         )
 
         sga = SpacegroupAnalyzer(docs[0].structure)

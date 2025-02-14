@@ -13,7 +13,7 @@ dependencies = [
     "ase",
     "matplotlib",
     "numpy",
-    "mp-api>=0.37.0",
+    "mp-api>=0.45.0",
     "python-dotenv"
 ]
 requires-python = ">=3.10"
