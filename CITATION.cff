@@ -1,11 +1,13 @@
-cff-version: 1.0.0
+cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
+type: software
+title: "muse-xtal"
+version: 0.2.0
+license: MIT
 authors:
 - family-names: "Chiang"
   given-names: "Yuan"
   orcid: "https://orcid.org/0000-0002-4017-7084"
-title: "muse"
-version: 0.1.0
 doi: 10.5281/zenodo.10369245
 date-released: 2023-12-12
 url: "https://github.com/chiang-yuan/muse"

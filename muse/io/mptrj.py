@@ -1,11 +1,36 @@
+"""Convert pymatgen trajectory data to extended XYZ format.
+
+Supports writing energies, forces, stresses, charges, magnetic moments,
+and dipoles from Materials Project trajectory (MPtrj) data.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
-from pymatgen.core.trajectory import Trajectory
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from pymatgen.core.trajectory import Trajectory
 
 __author__ = "Yuan Chiang"
 __date__ = "2023-08-02"
 
 
-def pmgtraj_to_extxyz(pmgtraj: Trajectory, fname: str):
+def pmgtraj_to_extxyz(pmgtraj: Trajectory, fname: str | Path) -> None:
+    """Convert a pymatgen Trajectory to an extended XYZ file.
+
+    Writes each frame of the trajectory in the extended XYZ format,
+    including lattice vectors, per-atom properties (species, positions,
+    forces, charges, magnetic moments, dipoles), and frame-level
+    properties (energies, stresses).
+
+    Args:
+        pmgtraj: A pymatgen Trajectory object, typically from MPtrj data.
+        fname: Output file path for the extended XYZ file.
+    """
     with open(fname, "w") as f:
         for iframe, structure in enumerate(pmgtraj):
             # Write the extxyz format for each snapshot

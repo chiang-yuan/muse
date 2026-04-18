@@ -1,9 +1,12 @@
-name: Publish
+name: Publish to PyPI
 
 on:
   release:
-    types: [published, released]
+    types: [published]
   workflow_dispatch:
+
+permissions:
+  id-token: write
 
 jobs:
   publish:
@@ -11,25 +14,20 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.x'  # Use your desired Python version
+          python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install build tools
         run: |
           python -m pip install --upgrade pip
-          pip install build twine
+          pip install build
 
       - name: Build package
-        run: |
-          python -m build
+        run: python -m build
 
-      - name: PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          python -m twine upload dist/* --comment "${{ steps.get_release_notes.outputs.release_notes }}"
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

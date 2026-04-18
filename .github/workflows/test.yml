@@ -3,22 +3,45 @@ name: Build and Test
 on: [push, pull_request]
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Lint
+        run: ruff check muse/ tests/
+
+      - name: Check formatting
+        run: ruff format --check muse/ tests/
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
-      # Step 1: Checkout the code
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      # Step 2: Set up build tools (e.g., install compilers, make)
-      - name: Install dependencies
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential
+          sudo apt-get install -y build-essential gfortran
 
-      # Step 3: Compile packmol
-      - name: Compile Packmol
+      - name: Compile and install Packmol
         run: |
           TAG=20.15.1
           wget "https://github.com/m3g/packmol/archive/refs/tags/v$TAG.tar.gz"
@@ -28,7 +51,13 @@ jobs:
           sudo mv packmol /usr/local/bin
           sudo chmod +x /usr/local/bin/packmol
 
-      # Step 4: Run tests using the binary from /usr/local/bin
-      - name: Run tests
+      - name: Install package
         run: |
-          which packmol
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Verify Packmol
+        run: which packmol
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
