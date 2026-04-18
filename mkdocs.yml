@@ -8,8 +8,8 @@ repo_name: chiang-yuan/muse
 
 theme:
   name: material
-  logo: docs/logo.png
-  favicon: docs/logo.png
+  logo: logo.png
+  favicon: logo.png
   palette:
     - scheme: default
       primary: deep purple

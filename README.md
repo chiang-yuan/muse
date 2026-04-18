@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/logo.png" alt="Muse logo" width="200">
+</p>
+
 # Muse
 
 [![PyPI version](https://img.shields.io/pypi/v/muse-xtal.svg)](https://pypi.org/project/muse-xtal/)
