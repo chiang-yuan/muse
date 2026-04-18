@@ -39,8 +39,12 @@ class TestMixNumber:
         """Test that the same seed produces the same structure."""
         from muse.transforms.mixture import mix_number
 
-        atoms1 = mix_number(recipe=dict(nacl_kcl_recipe), seed=42, tolerance=2.0, scale=1.1)
-        atoms2 = mix_number(recipe=dict(nacl_kcl_recipe), seed=42, tolerance=2.0, scale=1.1)
+        atoms1 = mix_number(
+            recipe=dict(nacl_kcl_recipe), seed=42, tolerance=2.0, scale=1.1
+        )
+        atoms2 = mix_number(
+            recipe=dict(nacl_kcl_recipe), seed=42, tolerance=2.0, scale=1.1
+        )
 
         assert len(atoms1) == len(atoms2)
         np.testing.assert_allclose(atoms1.cell[:], atoms2.cell[:])
@@ -52,15 +56,18 @@ class TestMixImports:
     def test_import_mix_number(self):
         """Verify mix_number can be imported from the public API."""
         from muse import mix_number
+
         assert callable(mix_number)
 
     def test_import_mix_cell(self):
         """Verify mix_cell can be imported from the public API."""
         from muse import mix_cell
+
         assert callable(mix_cell)
 
     def test_import_from_submodule(self):
         """Verify imports work from the transforms subpackage."""
         from muse.transforms import mix_cell, mix_number
+
         assert callable(mix_number)
         assert callable(mix_cell)

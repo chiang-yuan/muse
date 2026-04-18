@@ -6,7 +6,7 @@ mkdir -p $SRC_DIR
 
 cd $SRC_DIR
 
-wget "https://github.com/m3g/packmol/archive/refs/tags/v$TAG.tar.gz" 
+wget "https://github.com/m3g/packmol/archive/refs/tags/v$TAG.tar.gz"
 tar -xvf v$TAG.tar.gz
 
 rm v$TAG.tar.gz

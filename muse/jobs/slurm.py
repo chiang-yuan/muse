@@ -46,9 +46,7 @@ def submit_job(
         --output={job_name}.out
         --error={job_name}.err
         --nodes={nodes}
-        --ntasks-per-node={ntasks_per_node}""".replace(
-            "'", ""
-        ).split(),
+        --ntasks-per-node={ntasks_per_node}""".replace("'", "").split(),
     ]
 
     if account is not None:

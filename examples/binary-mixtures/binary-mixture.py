@@ -4,11 +4,9 @@ import argparse
 import json
 import os
 import os.path as osp
-import tempfile
 import time
 from datetime import timedelta
 from pathlib import Path
-from typing import Union
 
 import numpy as np
 import psutil
@@ -16,13 +14,8 @@ import torch
 from ase import units
 from ase.calculators.lj import LennardJones
 from ase.io import read, write
-from ase.io.trajectory import Trajectory
-from ase.md.npt import NPT
-from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary
-from ase.optimize import BFGS, FIRE
-from ase.optimize.optimize import Optimizer
+from ase.optimize import FIRE
 from mace.calculators import MACECalculator
-from matcalc.base import PropCalc
 from pymatgen.core.periodic_table import Element
 from vasp_interactive import VaspInteractive
 
@@ -30,6 +23,7 @@ from muse.calcs.density import DensityCalc
 from muse.transforms.mixture import mix
 
 os.environ["OMP_NUM_THREADS"] = "1"
+
 
 def main(args):
     parent_dir = osp.join(args.root, "-".join(args.recipe.keys()))
@@ -57,16 +51,14 @@ def main(args):
     njobs = min(ncpus, len(atoms))
 
     # os.environ["ASE_VASP_COMMAND"] = f"ulimit -s unlimited; mpirun -np {njobs} /jet/home/ychiang4/.local/bin/vasp_std"
-    os.environ[
-        "ASE_VASP_COMMAND"
-    ] = f"ulimit -s unlimited; module load intelmpi/20.4-intel20.4; mpirun -np {njobs} /jet/home/ychiang4/.local/bin/vasp_std"
+    os.environ["ASE_VASP_COMMAND"] = (
+        f"ulimit -s unlimited; module load intelmpi/20.4-intel20.4; mpirun -np {njobs} /jet/home/ychiang4/.local/bin/vasp_std"
+    )
 
     # 1. Relax the mixture using Lennard-Jones potential
 
     sigma = atoms.get_volume() / len(atoms) ** (1 / 3)
-    atoms.calc = LennardJones(
-        sigma=1.5 * sigma, epsilon=1.0, rc=None, smooth=True
-    )
+    atoms.calc = LennardJones(sigma=1.5 * sigma, epsilon=1.0, rc=None, smooth=True)
     optimizer = FIRE(atoms)
     optimizer.run(fmax=0.1)
 
@@ -93,15 +85,16 @@ def main(args):
     os.makedirs(out_stem, exist_ok=True)
 
     if "vasp" in args.calculator.lower():
-        raise NotImplementedError("Running density pipeline using VASP is not supported yet.")
+        raise NotImplementedError(
+            "Running density pipeline using VASP is not supported yet."
+        )
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         calculator = MACECalculator(
-            # model_paths='/ocean/projects/dmr110014p/ychiang4/2023-08-14-mace-universal.model', 
+            # model_paths='/ocean/projects/dmr110014p/ychiang4/2023-08-14-mace-universal.model',
             model_paths=args.calculator,
-            device=device
+            device=device,
         )
-        
 
     density_calc = DensityCalc(
         calculator=calculator,
@@ -114,13 +107,13 @@ def main(args):
     )
 
     results = density_calc.calc(
-        atoms=atoms, 
-        temperature=temp, 
-        externalstress=pressure, # equivalent to (-p, -p, -p, 0, 0, 0)
+        atoms=atoms,
+        temperature=temp,
+        externalstress=pressure,  # equivalent to (-p, -p, -p, 0, 0, 0)
         timestep=dt,
         ttime=ttime,
         pfactor=pfactor,
-        annealing=1.2
+        annealing=1.2,
     )
 
     print(results)
@@ -166,7 +159,7 @@ def main(args):
         lplane=True,
         npar=2,
         lscalu=False,
-        nsim=4
+        nsim=4,
     )
 
     traj_file = osp.join(out_stem, density_calc.final_traj_fpath)
@@ -174,7 +167,6 @@ def main(args):
     traj = read(traj_file, index=":")
 
     for i, cloned in enumerate(traj):
-
         if i % args.nsamples != 0:
             continue
 
@@ -191,7 +183,7 @@ def main(args):
             cloned = calc.get_atoms()
 
             write(osp.join(out_stem, f"3-{calc.name}-vasp-{i:03d}.xyz"), cloned)
-            
+
             # npt = NPT(
             #     cloned,
             #     timestep=dt,
@@ -210,7 +202,7 @@ def main(args):
             # traj.close()
 
     # traj = read(traj_fpath, index=":", append=True)
-    
+
     # for atoms in traj:
     #     write(osp.join(out_dir, f"3-{calc.name}-vasp.xyz"), atoms, append=True)
 

@@ -174,9 +174,7 @@ def mix_number(
                     atoms = Atoms(symbols=symbols, cell=[a, a, a], pbc=True)
                     atoms = sort(atoms)
 
-                    atoms.set_scaled_positions(
-                        rng.random(size=atoms.positions.shape)
-                    )
+                    atoms.set_scaled_positions(rng.random(size=atoms.positions.shape))
                     break
 
                 if seed % retry == 0:
@@ -372,9 +370,7 @@ def mix_cell(
 
                     a, b, c, alpha, beta, gamma = cell.cellpar()
                     atoms = Atoms(cell=cell, pbc=True)
-                    atoms.set_scaled_positions(
-                        rng.random(size=atoms.positions.shape)
-                    )
+                    atoms.set_scaled_positions(rng.random(size=atoms.positions.shape))
                     break
 
                 if seed % 1000 == 0:

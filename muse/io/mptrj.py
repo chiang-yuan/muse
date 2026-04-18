@@ -36,7 +36,7 @@ def pmgtraj_to_extxyz(pmgtraj: Trajectory, fname: str | Path) -> None:
             # Write the extxyz format for each snapshot
             f.write(f"{len(structure)}\n")
             f.write(
-                f"Lattice=\"{' '.join(map(str, structure.lattice.matrix.ravel()))}\" "
+                f'Lattice="{" ".join(map(str, structure.lattice.matrix.ravel()))}" '
             )
             f.write("Properties=species:S:1:pos:R:3")
 
@@ -60,7 +60,7 @@ def pmgtraj_to_extxyz(pmgtraj: Trajectory, fname: str | Path) -> None:
 
             if "stresses" in properties:
                 f.write(
-                    f" stresses=\"{' '.join(map(str, np.array(properties['stresses']).ravel()))}\""
+                    f' stresses="{" ".join(map(str, np.array(properties["stresses"]).ravel()))}"'
                 )
 
             f.write("\n")
