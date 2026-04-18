@@ -22,7 +22,7 @@ jobs:
       - name: Install package and docs dependencies
         run: |
           uv sync --extra docs
-          uv pip install --system -r docs/requirements.txt
+          uv pip install -r docs/requirements.txt
 
       - name: Build the book
         run: |
