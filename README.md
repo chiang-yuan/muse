@@ -27,9 +27,6 @@ pip install muse-xtal
 # MACE calculator support
 pip install "muse-xtal[mace]"
 
-# VASP interactive calculator support
-pip install "muse-xtal[vasp]"
-
 # Development tools (ruff, pytest)
 pip install "muse-xtal[dev]"
 

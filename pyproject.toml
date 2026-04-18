@@ -53,9 +53,7 @@ dev = [
 mace = [
     "mace-torch>=0.3.0",
 ]
-vasp = [
-    "vasp-interactive",
-]
+
 docs = [
     "jupyter-book",
     "sphinx",
