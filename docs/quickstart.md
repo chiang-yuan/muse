@@ -1,6 +1,6 @@
 # Quick Start
 
-## Building a Mixture
+## Building a mixture
 
 The simplest way to build a mixture is with `mix_number`, which takes a recipe
 of chemical formulas and formula unit counts:
@@ -23,7 +23,7 @@ The function queries Materials Project for the ground-state crystal structures,
 then uses Packmol to pack the desired number of formula units into a cubic
 simulation cell.
 
-## Key Parameters
+## Key parameters
 
 | Parameter   | Description                                      | Default |
 | ----------- | ------------------------------------------------ | ------- |
@@ -34,7 +34,7 @@ simulation cell.
 | `seed`      | Random seed for reproducibility                  | 1       |
 | `density`   | Target mass density (amu/ų) for cell rescaling   | None    |
 
-## Density Equilibration
+## Density equilibration
 
 After building an initial structure, use `DensityCalc` to equilibrate the
 density through NVT → NPT molecular dynamics:
@@ -66,7 +66,7 @@ print(f"Density: {results['mass_density']:.4f} amu/ų")
 print(f"Volume:  {results['volume_avg']:.1f} ų")
 ```
 
-## Plotting Thermodynamic Diagrams
+## Plotting thermodynamic diagrams
 
 Muse includes custom Matplotlib Axes for binary thermodynamic diagrams:
 

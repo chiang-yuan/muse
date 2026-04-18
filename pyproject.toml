@@ -55,10 +55,8 @@ mace = [
 ]
 
 docs = [
-    "jupyter-book",
-    "sphinx",
-    "sphinx-autodoc-typehints",
-    "ghp-import",
+    "mkdocs-material",
+    "mkdocstrings[python]",
 ]
 
 [project.urls]
