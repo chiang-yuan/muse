@@ -2,7 +2,6 @@ import hashlib
 import json
 import os
 import re
-import subprocess
 
 from ase.formula import Formula
 
@@ -25,15 +24,18 @@ post_cmd = ""
 nsamples = 11
 
 for i in range(nsamples):
-    recipe = {str(a): nsamples-1-i, str(b): i}
+    recipe = {str(a): nsamples - 1 - i, str(b): i}
 
-    cmd = re.sub(r'\s+', ' ', f"""
-        python binary-mixture.py '{json.dumps(recipe)}' {temperature} {pressure} 
-        --tolerance {tolerance} 
-        --rattle {rattle} 
+    cmd = re.sub(
+        r"\s+",
+        " ",
+        f"""
+        python binary-mixture.py '{json.dumps(recipe)}' {temperature} {pressure}
+        --tolerance {tolerance}
+        --rattle {rattle}
         --scale {scale} {"--no-shuffle" if shuffle else ""} --seed {seed}
         --log
-        --root {os.getcwd()}"""
+        --root {os.getcwd()}""",
     )
 
     sha256 = hashlib.sha256()

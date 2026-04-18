@@ -1,10 +1,10 @@
-"""Calculator for density related properties."""
+"""Calculator for density-related properties via NPT molecular dynamics."""
+
 from __future__ import annotations
 
 import contextlib
 import io
-import re
-from collections.abc import Callable
+import logging
 from inspect import isclass
 from typing import TYPE_CHECKING
 
@@ -15,7 +15,7 @@ from ase.io.trajectory import Trajectory
 from ase.md.npt import NPT
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary
 from ase.optimize.optimize import Optimizer
-from matcalc.base import PropCalc
+from matcalc import PropCalc
 
 from muse.calcs.utils import TrajectoryObserver
 
@@ -28,9 +28,35 @@ if TYPE_CHECKING:
 __author__ = "Yuan Chiang"
 __date__ = "2023-08-02"
 
+logger = logging.getLogger(__name__)
+
 
 class DensityCalc(PropCalc):
-    """Relaxes and run NPT simulations to compute the density of structures."""
+    """Relax and run NPT simulations to compute the equilibrium density.
+
+    This calculator performs a three-stage molecular dynamics workflow:
+
+    1. **0 K relaxation** — Minimize forces with the chosen optimizer.
+    2. **NVT equilibration** — Thermalize at the target temperature with
+       fixed volume until energy converges.
+    3. **NPT production** — Allow both temperature and pressure to
+       equilibrate, then compute density from the final volume.
+
+    Args:
+        calculator: ASE calculator to use for energy/force evaluation.
+        optimizer: ASE optimizer class or name string. Defaults to ``"FIRE"``.
+        steps: Number of MD steps per convergence window. Defaults to 500.
+        interval: Trajectory save interval in steps. Defaults to 1.
+        fmax: Maximum force for structural relaxation (eV/Å). Defaults to 0.1.
+        mask: 3×3 mask array controlling which cell degrees of freedom
+            are relaxed in the NPT barostat. Defaults to None (all free).
+        rtol: Relative tolerance for energy convergence between windows.
+            Defaults to 1e-4.
+        atol: Absolute tolerance for stress convergence (eV/ų).
+            Defaults to 1e-4.
+        out_stem: Path stem for saving trajectory and observer files.
+            Defaults to ``"."``.
+    """
 
     def __init__(
         self,
@@ -44,19 +70,6 @@ class DensityCalc(PropCalc):
         atol: float = 1e-4,
         out_stem: str | Path = ".",
     ):
-        """Initialize the Density Calculator.
-
-        Args:
-            calculator (Calculator): Calculator to use.
-            optimizer (Optimizer | str): Optimizer to use. Defaults to "FIRE".
-            steps (int, optional): Number of steps to run the relaxation. Defaults to 500.
-            interval (int, optional): Interval to save the trajectory. Defaults to 1.
-            fmax (float, optional): Maximum force to stop the relaxation. Defaults to 0.1.
-            mask (list | np.ndarray | None, optional): Mask allowing cell parameter relaxation. Defaults to None.
-            rtol (float, optional): Relative tolerance for the NPT simulation, in the unit of eV/A^3. Defaults to 1e-5.
-            atol (float, optional): Absolute tolerance for the NPT simulation. Defaults to 1e-5.
-            out_stem (str | None, optional): Filename to save the trajectory. Defaults to None.
-        """
         self.calculator = calculator
 
         # check str is valid optimizer key
@@ -92,34 +105,37 @@ class DensityCalc(PropCalc):
         """Relax the structure and run NPT simulations to compute the density.
 
         Args:
-            atoms (Atoms): Structure to relax.
-            temperature (float): Temperature of the simulation in Kelvin.
-            externalstress: External pressure of the simulation in eV/A^3.
-            timestep (float, optional): Timestep of the simulation in ASE internal units. Defaults to 2.0 fs.
-            ttime (float | None, optional): Characteristic timescale of thermostat in ASE internal units.
-                                            Defaults to 25.0 fs.
-            pfactor (float | None, optional): Constant factor in barastat differential equation in ASE interel units.
-                                              Defaults to (75 fs)^2 * 1 GPa.
-            annealing (float, optional): Temperature factor for the nvt velocities. Defaults to 1.0.
+            atoms: Structure to relax and equilibrate.
+            temperature: Temperature of the simulation in Kelvin.
+            externalstress: External pressure in eV/ų (scalar for isotropic,
+                or Voigt 6-vector).
+            timestep: MD timestep in ASE internal units. Defaults to 2.0 fs.
+            ttime: Thermostat characteristic timescale in ASE internal units.
+                Defaults to 25.0 fs.
+            pfactor: Barostat constant in ASE internal units.
+                Defaults to (75 fs)² × 1 GPa.
+            annealing: Temperature scaling factor for NVT initialization.
+                Values > 1 start hotter to aid equilibration. Defaults to 1.0.
+            momentum: Exponential moving average factor for energy convergence
+                tracking between NVT/NPT windows. Defaults to 0.9.
 
         Returns:
-            Atoms: Relaxed structure.
+            Dictionary with keys:
+                - ``volume_avg``: Mean cell volume (ų).
+                - ``volume_std``: Standard deviation of cell volume.
+                - ``atomic_density``: Number density (atoms/ų).
+                - ``mass_density``: Mass density (amu/ų).
+                - ``energy_avg``: Mean potential energy (eV).
+                - ``energy_std``: Standard deviation of potential energy.
         """
         # relax the structure
-
         atoms.calc = self.calculator
 
         stream = io.StringIO()
 
         # step 0: relax at 0 K
-
         with contextlib.redirect_stdout(stream):
-            # assert isinstance(self.optimizer, Callable)
             optimizer = self.optimizer(atoms)
-            # assert isinstance(self.optimizer, Optimizer)
-
-            # if self.mask is not None:
-            #     ecf = ExpCellFilter(atoms, mask=self.mask)
 
             if self.out_stem is not None:
                 traj = Trajectory(f"{self.out_stem}-relax.traj", "w", atoms)
@@ -135,13 +151,7 @@ class DensityCalc(PropCalc):
             obs.save(f"{self.out_stem}-relax.pkl")
             del obs
 
-        # print("Relaxation done.")
-
-        # if self.mask is not None:
-        #     atoms = ecf.atoms
-
-        # step 1: run nvt simulation
-
+        # step 1: run NVT simulation
         MaxwellBoltzmannDistribution(atoms, temperature_K=temperature * annealing)
         Stationary(atoms, preserve_temperature=True)
 
@@ -193,40 +203,29 @@ class DensityCalc(PropCalc):
                 del obs
 
             if not converged:
-                print(
-                    f"NVT - {restart}: Energy or stress not converged, restarting simulation."
+                logger.info(
+                    "NVT - %d: Energy or stress not converged, restarting simulation.",
+                    restart,
                 )
-                print(
-                    f"Current relative energy deviation: {(erg_avg - last_erg_avg)/last_erg_avg*100} %."
-                    if not erg_converged
-                    else "Energy converged."
-                )
-                print(
-                    f"Target relative energy deviation: {self.rtol*100} %."
-                    if not erg_converged
-                    else "\r"
-                )
-                print(
-                    f"Current pressure: {stress} eV/A^3."
-                    if not str_converged
-                    else "Pressure converged."
-                )
-                print(
-                    f"Target pressure: {nvt.externalstress} eV/A^3."
-                    if not str_converged
-                    else "\r"
-                )
+                if not erg_converged:
+                    logger.info(
+                        "Current relative energy deviation: %.4f %%. Target: %.4f %%.",
+                        (erg_avg - last_erg_avg) / last_erg_avg * 100,
+                        self.rtol * 100,
+                    )
+                else:
+                    logger.info("Energy converged.")
+                if not str_converged:
+                    logger.info("Current pressure: %s eV/ų.", stress)
+                    logger.info("Target pressure: %s eV/ų.", nvt.externalstress)
+                else:
+                    logger.info("Pressure converged.")
+
                 nvt.observers.clear()
-                # npt.zero_center_of_mass_momentum()
-                # alpha = np.exp(-restart / 10)
                 last_erg_avg = momentum * erg_avg + (1 - momentum) * last_erg_avg
                 restart += 1
 
-        # step 3: run NPT simulation
-
-        # MaxwellBoltzmannDistribution(atoms, temperature_K=temperature)
-        # Stationary(atoms, preserve_temperature=True)
-
+        # step 2: run NPT simulation
         npt = NPT(
             atoms,
             timestep=timestep,
@@ -277,32 +276,25 @@ class DensityCalc(PropCalc):
                 obs.save(f"{self.out_stem}-npt-{restart}.pkl")
 
             if not converged:
-                print(
-                    f"NPT - {restart}: Energy or stress not converged, restarting simulation."
+                logger.info(
+                    "NPT - %d: Energy or stress not converged, restarting simulation.",
+                    restart,
                 )
-                print(
-                    f"Current relative energy deviation: {(erg_avg - last_erg_avg)/last_erg_avg*100} %."
-                    if not erg_converged
-                    else "Energy converged."
-                )
-                print(
-                    f"Target relative energy deviation: {self.rtol*100} %."
-                    if not erg_converged
-                    else "\r"
-                )
-                print(
-                    f"Current pressure: {stress} eV/A^3."
-                    if not str_converged
-                    else "Pressure converged."
-                )
-                print(
-                    f"Target pressure: {npt.externalstress} eV/A^3."
-                    if not str_converged
-                    else "\r"
-                )
+                if not erg_converged:
+                    logger.info(
+                        "Current relative energy deviation: %.4f %%. Target: %.4f %%.",
+                        (erg_avg - last_erg_avg) / last_erg_avg * 100,
+                        self.rtol * 100,
+                    )
+                else:
+                    logger.info("Energy converged.")
+                if not str_converged:
+                    logger.info("Current pressure: %s eV/ų.", stress)
+                    logger.info("Target pressure: %s eV/ų.", npt.externalstress)
+                else:
+                    logger.info("Pressure converged.")
+
                 npt.observers.clear()
-                # npt.zero_center_of_mass_momentum()
-                # alpha = np.exp(-restart / 10)
                 last_erg_avg = momentum * erg_avg + (1 - momentum) * last_erg_avg
                 restart += 1
 

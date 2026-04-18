@@ -1,39 +1,37 @@
-from collections.abc import Sequence
-from typing import Any
+"""Binary mixing volume diagram with Redlich–Kister curve fitting."""
+
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from scipy.optimize import curve_fit
-from ase import Atoms
 from ase.build import sort
 from ase.formula import Formula
 from matplotlib.axes._axes import Axes
-from matplotlib.figure import Figure
+from scipy.optimize import curve_fit
+
+from muse.plots._utils import redlich_kister_model
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from ase import Atoms
+    from matplotlib.figure import Figure
 
 __author__ = "Yuan Chiang"
 __date__ = "2023-12-11"
 
-eps = 1e-10
-
-def redlich_kister_model(x, T, *params):
-    """
-    Redlich-Kister expansion for excess property rho_ex.
-    
-    x  : mole fraction of one component
-    T  : temperature (assumed constant for each data point)
-    *params : array of A_n and B_n parameters for the Redlich-Kister expansion
-    """
-    N = len(params) // 2  # Number of terms N
-    rho_ex = 0
-    for n in range(1, N + 1):
-        A_n = params[2 * (n - 1)]
-        B_n = params[2 * (n - 1) + 1]
-        L_n = A_n + B_n * T  # Linear temperature-dependent term L_n
-        rho_ex += L_n * (2 * x - 1) ** (n - 1)  # Redlich-Kister term
-    return x * (1 - x) * rho_ex
+logger = logging.getLogger(__name__)
 
 
 class MixingVolumeDiagram(Axes):
-    """Binary mixing volume diagram plotter."""
+    """Custom Matplotlib Axes for binary excess mixing volume diagrams.
+
+    Computes the deviation of molar volume from ideal mixing
+    (Vegard's law) and fits the excess volume with a Redlich–Kister
+    polynomial.
+    """
 
     def __init__(
         self,
@@ -67,7 +65,17 @@ class MixingVolumeDiagram(Axes):
         self,
         trajectories: Sequence[Sequence[Atoms]],
         phases: Sequence[str | Formula],
-    ):
+    ) -> None:
+        """Process MD trajectories to extract density, volume, and excess volume.
+
+        Computes mass density (g/cm³), molar volume (ų/formula unit),
+        and volume deviation from ideal (Vegard's law) mixing for each
+        trajectory, storing results sorted by composition.
+
+        Args:
+            trajectories: List of MD trajectories, each a sequence of Atoms.
+            phases: Two-element list of phase formulas defining the binary system.
+        """
         # Change strings to Formula objects and sort symbols
         for phase in phases:
             phase = Formula.from_list(phase) if isinstance(phase, str) else sort(phase)
@@ -113,7 +121,6 @@ class MixingVolumeDiagram(Axes):
         self.y["density.std"] = np.array(denstds)[idx]
         self.y["volume.avg"] = np.array(volavgs)[idx]
         self.y["volume.std"] = np.array(volstds)[idx]
-        # volavgs =
         self.y["volume.deviation"] = self.y["volume.avg"] - (
             self.y["volume.avg"][0]
             + self.x * (self.y["volume.avg"][-1] - self.y["volume.avg"][0])
@@ -128,12 +135,25 @@ class MixingVolumeDiagram(Axes):
         rk: int = 2,
         **kwargs,
     ) -> None:
-        """Plot a binary phase diagram from a list of trajectories."""
+        """Plot a binary excess volume diagram from MD trajectories.
+
+        Computes the volume deviation from ideal mixing, plots it with
+        error bars, and overlays a Redlich–Kister polynomial fit.
+
+        Args:
+            trajectories: List of MD trajectories at different compositions.
+            phases: Two-element list of phase formulas defining the binary system.
+            temperature: Temperature in Kelvin for the Redlich–Kister fit.
+                Defaults to 1000 K if not provided.
+            label: Label prefix for the legend entries.
+            rk: Number of Redlich–Kister terms. Defaults to 2.
+            **kwargs: Additional keyword arguments passed to ``errorbar``.
+        """
         assert len(phases) == 2
 
         self.process(trajectories, phases)
 
-        color = kwargs.pop("color", 'k')
+        color = kwargs.pop("color", "k")
 
         self.errorbar(
             self.x,
@@ -147,27 +167,26 @@ class MixingVolumeDiagram(Axes):
             **kwargs,
         )
 
-        # Fitting the Redlich-Kister expansion model to Delta H (dH)
-        initial_guess = [0.0] * (2 * rk)  # Initial guess for [A1, B1, A2, B2, ..., AN, BN]
+        # Fitting the Redlich-Kister expansion model to excess volume
+        initial_guess = [0.0] * (2 * rk)
         params_opt, params_cov = curve_fit(
             lambda x_T, *params: redlich_kister_model(x_T[0], x_T[1], *params),
-            (self.x, np.ones_like(self.x)*(temperature or 1000)), self.y, p0=initial_guess
+            (self.x, np.ones_like(self.x) * (temperature or 1000)),
+            self.y["volume.deviation"],
+            p0=initial_guess,
         )
 
-        # Extract fitted parameters for Redlich-Kister expansion
         fitted_params = params_opt.reshape(-1, 2)
-        print("Fitted Redlich-Kister parameters (A_n, B_n):", fitted_params)
+        logger.info("Fitted Redlich-Kister parameters (A_n, B_n): %s", fitted_params)
 
-        # Calculate fitted curve for Delta H using the fitted parameters
         xs = np.linspace(self.x.min(), self.x.max(), int(1e3))
-        dH_fitted = redlich_kister_model(xs, temperature, *params_opt)
+        dV_fitted = redlich_kister_model(xs, temperature, *params_opt)
 
-        # Plotting the fitted Redlich-Kister curve
         self.plot(
             xs,
-            dH_fitted,
+            dV_fitted,
             label=f"{label}: Redlich-Kister Fit" if label else "Redlich-Kister Fit",
             linestyle="--",
             lw=kwargs.get("lw", 1),
-            color=color
+            color=color,
         )

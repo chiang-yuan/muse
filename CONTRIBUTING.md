@@ -45,11 +45,44 @@ If you are proposing a feature:
 Ready to contribute? Here's how to set up `muse` for local development.
 
 1. Fork the repo on GitHub.
-2. Clone your fork locally.
-3. Install your local copy into a virtualenv, e.g., using `conda`.
-4. Create a branch for local development and make changes locally.
-5. Commit your changes and push your branch to GitHub.
-6. Submit a pull request through the GitHub website.
+2. Clone your fork locally:
+   ```bash
+   git clone https://github.com/<your-username>/muse.git
+   cd muse
+   ```
+3. Install the package in development mode with dev dependencies:
+   ```bash
+   pip install -e ".[dev]"
+   ```
+4. Install [Packmol](http://m3g.iqm.unicamp.br/packmol/home.shtml) (required for structure generation):
+   ```bash
+   bash scripts/install-packmol.sh
+   ```
+5. Create a branch for local development and make changes locally:
+   ```bash
+   git checkout -b feature/my-new-feature
+   ```
+6. Check your code style with ruff:
+   ```bash
+   ruff check muse/ tests/
+   ruff format --check muse/ tests/
+   ```
+7. Run the test suite with pytest:
+   ```bash
+   pytest tests/ -v
+   ```
+8. Commit your changes and push your branch to GitHub.
+9. Submit a pull request through the GitHub website.
+
+## Code Style
+
+This project uses [ruff](https://github.com/astral-sh/ruff) for linting and formatting.
+Configuration is in `pyproject.toml`. Run formatting before committing:
+
+```bash
+ruff check --fix muse/ tests/
+ruff format muse/ tests/
+```
 
 ## Code of Conduct
 

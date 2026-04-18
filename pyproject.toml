@@ -4,85 +4,119 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "muse-xtal"
-version = "0.1.2"
-description = ""
+version = "0.2.0"
+description = "Build amorphous solids and liquid mixtures from Materials Project structures using Packmol and machine learning interatomic potentials"
 authors = [{ name = "Yuan Chiang", email = "cyrusyc@lbl.gov" }]
 license = { file = "LICENSE" }
 readme = "README.md"
-dependencies = [
-    "ase",
-    "matplotlib",
-    "numpy",
-    "mp-api>=0.45.0",
-    "python-dotenv"
-]
 requires-python = ">=3.10"
+keywords = [
+    "materials-science",
+    "molecular-dynamics",
+    "amorphous-solids",
+    "liquid-mixtures",
+    "packmol",
+    "machine-learning-interatomic-potentials",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "ase>=3.22.0",
+    "matplotlib>=3.5",
+    "numpy>=1.22",
+    "scipy>=1.7",
+    "mp-api>=0.45.0",
+    "pymatgen>=2023.7.1",
+    "monty>=2023.5.8",
+    "matcalc>=0.0.4",
+    "python-dotenv",
+]
 
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pre-commit",
+    "pytest",
+    "pytest-cov",
+]
+mace = [
+    "mace-torch>=0.3.0",
+]
+
+docs = [
+    "jupyter-book",
+    "sphinx",
+    "sphinx-autodoc-typehints",
+    "ghp-import",
+]
 
 [project.urls]
-Repo = "https://github.com/chiang-yuan/muse"
+Homepage      = "https://github.com/chiang-yuan/muse"
+Documentation = "https://chiang-yuan.github.io/muse"
+Repository    = "https://github.com/chiang-yuan/muse"
+Issues        = "https://github.com/chiang-yuan/muse/issues"
 
 [tool.setuptools.packages.find]
 include = ["muse*"]
 exclude = ["tests", "lab"]
 
+[tool.ruff]
+extend-include = ["*.ipynb"]
+line-length = 88
+indent-width = 4
+target-version = "py310"
+exclude = [
+    ".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg",
+    ".ipynb_checkpoints", ".mypy_cache", ".nox", ".pants.d", ".pytype",
+    ".ruff_cache", ".svn", ".tox", ".venv", "__pypackages__",
+    "_build", "buck-out", "build", "dist", "node_modules", "venv",
+]
 
 [tool.ruff.lint]
-include = ["*.py", "*.pyi", "**/pyproject.toml", "*.ipynb"]
-# Enable the pycodestyle (`E`) and Pyflakes (`F`) rules by default.
-# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
-# McCabe complexity (`C901`) by default.
 select = [
-  "I",      # isort
-  "ICN",    # flake8-import-conventions
-  "ISC",    # flake8-implicit-str-concat
-  "PD",     # pandas-vet
-  "SIM",    # flake8-simplify
-  "SLOT",   # flake8-slots
-  "TCH",    # flake8-type-checking
-  "TID",    # flake8-tidy-imports
-  "UP",     # pyupgrade
+  "E4", "E7", "E9",  # pycodestyle errors
+  "F",       # pyflakes
+  "I",       # isort
+  "ICN",     # flake8-import-conventions
+  "ISC",     # flake8-implicit-str-concat
+  "PD",      # pandas-vet
+  "SIM",     # flake8-simplify
+  "SLOT",    # flake8-slots
+  "TCH",     # flake8-type-checking
+  "TID",     # flake8-tidy-imports
+  "UP",      # pyupgrade
 ]
 ignore = []
 
-# Allow autofix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
 unfixable = []
 
-# Exclude a variety of commonly ignored directories.
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
-]
-per-file-ignores = {}
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = ["E402"]
 
-# Same as Black.
-line-length = 88
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
 
-# Allow unused variables when underscore-prefixed.
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-
-# Assume Python 3.11.
-target-version = "py311"
-
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
