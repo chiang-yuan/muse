@@ -28,6 +28,11 @@ jobs:
         run: |
           uv run jupyter-book build docs
 
+      - name: Sanity check built files
+        run: |
+          ls -R docs/_build/html
+          test -f docs/_build/html/index.html || (echo "Error: index.html not found!" && exit 1)
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         if: github.ref == 'refs/heads/main'
